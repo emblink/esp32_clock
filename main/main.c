@@ -16,6 +16,7 @@
 #include "font.h"
 #include "wifi.h"
 #include "sntp.h"
+#include "wifi_manager.h"
 
 // Define event types
 typedef enum {
@@ -66,6 +67,26 @@ static void onWifiConnectionCallback(bool connected)
     }
 }
 
+/**
+ * @brief this is an exemple of a callback that you can setup in your own app to get notified of wifi manager event.
+ */
+static void wifiManagerConnectedCallback(void *pvParameter)
+{
+	ip_event_got_ip_t* param = (ip_event_got_ip_t*)pvParameter;
+
+	/* transform IP to human readable string */
+	char str_ip[16];
+	esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
+
+	onWifiConnectionCallback(true);
+	ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
+}
+
+static void wifiManagerDisconnectedCallback(void *pvParameter)
+{
+	onWifiConnectionCallback(false);
+}
+
 static void onTimeSync(void)
 {
     // Send time sync event to the queue
@@ -105,7 +126,12 @@ void app_main(void)
 
     vSpiInit();
     max7219Init();
-    wifi_init(onWifiConnectionCallback);
+	/* start the wifi manager */
+    wifi_manager_start();
+	/* register a callback as an example to how you can integrate your code with the wifi manager */
+	wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifiManagerConnectedCallback);
+	wifi_manager_set_callback(WM_EVENT_STA_DISCONNECTED, &wifiManagerDisconnectedCallback);
+    // wifi_init(onWifiConnectionCallback);
     sntpInit(onTimeSync);
     gpio_set_direction(STATUS_LED_PIN, GPIO_MODE_OUTPUT);
 
@@ -121,27 +147,27 @@ void app_main(void)
         EventType receivedEvent;
         if (xQueueReceive(eventQueue, &receivedEvent, portMAX_DELAY) == pdTRUE) {
             switch (receivedEvent) {
-                case WIFI_CONNECTED_EVENT:
-                    obtain_time();
-                    xTimerChangePeriod(statusLedTimer, pdMS_TO_TICKS(2000), 0);
-                    ESP_LOGI(TAG, "Wi-Fi Connected");
-                    break;
+            case WIFI_CONNECTED_EVENT:
+                obtain_time();
+                xTimerChangePeriod(statusLedTimer, pdMS_TO_TICKS(2000), 0);
+                ESP_LOGI(TAG, "Wi-Fi Connected");
+                break;
 
-                case WIFI_DISCONNECTED_EVENT:
-                    xTimerChangePeriod(statusLedTimer, pdMS_TO_TICKS(500), 0);
-                    ESP_LOGI(TAG, "Wi-Fi Disconnected");
-                    break;
+            case WIFI_DISCONNECTED_EVENT:
+                xTimerChangePeriod(statusLedTimer, pdMS_TO_TICKS(500), 0);
+                ESP_LOGI(TAG, "Wi-Fi Disconnected");
+                break;
 
-                case TIME_UPDATE_EVENT:
-                    processClockMode();
-                    break;
-                    
-                case UPDATE_STATUS_LED:
-                    processStatusLed();
-                    break;
+            case TIME_UPDATE_EVENT:
+                processClockMode();
+                break;
+                
+            case UPDATE_STATUS_LED:
+                processStatusLed();
+                break;
 
-                default:
-                    break;
+            default:
+                break;
             }
         }
     }
