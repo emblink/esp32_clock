@@ -80,14 +80,18 @@ static void max7219SendData(const uint8_t dataBuff[], uint16_t size)
 
 static void max7219SendSettings(void)
 {
-    max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
-    max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
     max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DISPLAY_TEST_REG, MAX7219_TEST_DISABLE); // Display-Test off.
     max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
     max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SCAN_LIMIT_REG, 0x07); // Activate all rows.
     max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
     max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DECODE_MODE_REG, 0x00); // No decode mode.
-    max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE); 
+    max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+    const uint8_t clearBuff[8] = {0x00};
+    for (int i = MAX7219_NUMBER_0; i < MAX7219_NUMBER_COUNT; i++) {
+        max7219SendSymbol(i, clearBuff);
+    }
+    max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
+    max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 }
 
 static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg)
